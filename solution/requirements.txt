@@ -1,0 +1,14 @@
+fastapi==0.115.6
+uvicorn==0.23.2
+SQLAlchemy==2.0.37
+psycopg2-binary==2.9.10
+passlib==1.7.4
+bcrypt==4.0.1
+python-jose==3.3.0
+pydantic==2.3.0
+datetime==5.5.0
+typing==3.7.4.3
+uuid==1.30
+python-dotenv==1.0.1
+alembic==1.14.1
+
