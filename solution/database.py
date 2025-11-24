@@ -9,10 +9,8 @@ import uuid
 
 load_dotenv()
 
-DATABASE_URL = (
-    f"postgresql://{getenv('POSTGRES_USERNAME')}:{getenv('POSTGRES_PASSWORD')}"
-    f"@{getenv('POSTGRES_HOST')}:{getenv('POSTGRES_PORT')}/{getenv('POSTGRES_DATABASE')}"
-)
+DATABASE_URL = "postgresql://prod:prod@host.docker.internal:5432/prod"
+
 
 engine = create_engine(DATABASE_URL)
 
