@@ -9,8 +9,6 @@ from utility import hash_password, create_access_token, verify_password, verify_
 from models import CompanyCreate, AuthRequest, PromoCodeCreate
 import uvicorn
 import os
-
-init_db()
 app = FastAPI(root_path="/api")
 
 

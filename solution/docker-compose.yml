@@ -1,20 +1,33 @@
-version: '3.8'
+version: "3.8"
 
 services:
   app:
     build: .
-    container_name: app-container
+    container_name: my_app
     environment:
-      POSTGRES_USERNAME: prod
-      POSTGRES_PASSWORD: prod
-      POSTGRES_HOST: host.docker.internal
-      POSTGRES_PORT: 5432
-      POSTGRES_DATABASE: prod
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DATABASE=prod
+      - POSTGRES_USERNAME=prod
+      - POSTGRES_PASSWORD=prod
     ports:
-      - "8000:8000"
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_USER: prod
+      POSTGRES_PASSWORD: prod
+      POSTGRES_DB: prod
+    ports:
+      - "5432:5432"
     networks:
-      - mynetwork
+      - default
+    restart: always
 
 networks:
-  mynetwork:
+  default:
     driver: bridge
