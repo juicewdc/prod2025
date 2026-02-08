@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Промокоды</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+        h1 { font-size: 1.5rem; }
+        form { margin: 1rem 0; }
+        label { display: block; margin-top: 0.5rem; }
+        input, select, textarea { width: 100%; padding: 0.4rem; margin-top: 0.2rem; }
+        button { margin-top: 0.8rem; padding: 0.5rem 1rem; cursor: pointer; }
+        .block { display: none; }
+        .block.active { display: block; }
+        .error { color: #c00; margin-top: 0.5rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { border: 1px solid #ccc; padding: 0.4rem; text-align: left; }
+        a { color: #06c; }
+    </style>
+</head>
+<body>
+<h1>Промокоды</h1>
+
+<div id="authBlock" class="block active">
+    <p id="authTabs">
+        <a href="#" id="tabLogin">Вход</a> |
+        <a href="#" id="tabRegister">Регистрация</a>
+    </p>
+    <form id="loginForm">
+        <label>Email <input type="email" name="email" required></label>
+        <label>Пароль <input type="password" name="password" required></label>
+        <button type="submit">Войти</button>
+    </form>
+    <form id="registerForm" class="block">
+        <label>Название компании (5–50 символов) <input type="text" name="name" minlength="5" maxlength="50" required></label>
+        <label>Email <input type="email" name="email" required></label>
+        <label>Пароль (латиница, цифра, спецсимвол @$!%*?&) <input type="password" name="password" required></label>
+        <button type="submit">Зарегистрироваться</button>
+    </form>
+    <p id="authError" class="error"></p>
+</div>
+
+<div id="appBlock" class="block">
+    <p>Вы вошли. <button id="btnLogout">Выйти</button></p>
+    <h2>Мои промокоды</h2>
+    <button id="btnNewPromo">Создать промокод</button>
+    <div id="promoList"></div>
+
+    <form id="promoForm" class="block">
+        <h3>Новый промокод</h3>
+        <label>Режим
+            <select name="mode">
+                <option value="COMMON">COMMON</option>
+                <option value="UNIQUE">UNIQUE</option>
+            </select>
+        </label>
+        <label id="lblPromoCommon">Общий код <input type="text" name="promo_common" maxlength="30"></label>
+        <label id="lblPromoUnique" class="block">Уникальные коды (JSON-массив строк) <textarea name="promo_unique" rows="2">["code1", "code2"]</textarea></label>
+        <label>Описание (10–300 символов) <textarea name="description" minlength="10" maxlength="300" required></textarea></label>
+        <label>Картинка (URL) <input type="url" name="image_url"></label>
+        <label>Целевая аудитория (JSON, например {"countries":["RU"]}) <input type="text" name="target" value='{"countries":["RU"]}'></label>
+        <label>Макс. использований <input type="number" name="max_count" min="1" required></label>
+        <label>Активен с (YYYY-MM-DD) <input type="text" name="active_from" placeholder="2025-01-01"></label>
+        <label>Активен до (YYYY-MM-DD) <input type="text" name="active_until" placeholder="2025-12-31"></label>
+        <button type="submit">Создать</button>
+        <button type="button" id="btnCancelPromo">Отмена</button>
+        <p id="promoError" class="error"></p>
+    </form>
+</div>
+
+<script>
+    const API = '';
+    function token() { return localStorage.getItem('token'); }
+    function setToken(t) { if (t) localStorage.setItem('token', t); else localStorage.removeItem('token'); }
+
+    function show(el, on) { el.classList.toggle('active', !!on); }
+    function err(el, msg) { el.textContent = msg || ''; }
+
+    document.getElementById('tabLogin').onclick = e => {
+        e.preventDefault();
+        show(document.getElementById('loginForm'), true);
+        show(document.getElementById('registerForm'), false);
+        err(document.getElementById('authError'), '');
+    };
+    document.getElementById('tabRegister').onclick = e => {
+        e.preventDefault();
+        show(document.getElementById('loginForm'), false);
+        show(document.getElementById('registerForm'), true);
+        err(document.getElementById('authError'), '');
+    };
+
+    document.getElementById('loginForm').onsubmit = async e => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const body = { email: fd.get('email'), password: fd.get('password') };
+        const errEl = document.getElementById('authError');
+        try {
+            const r = await fetch(API + '/business/auth/sign-in', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) { err(errEl, data.detail || 'Ошибка входа'); return; }
+            setToken(data.token);
+            show(document.getElementById('authBlock'), false);
+            show(document.getElementById('appBlock'), true);
+            loadPromos();
+        } catch (e) { err(errEl, e.message); }
+    };
+
+    document.getElementById('registerForm').onsubmit = async e => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const body = { name: fd.get('name'), email: fd.get('email'), password: fd.get('password') };
+        const errEl = document.getElementById('authError');
+        try {
+            const r = await fetch(API + '/business/auth/sign-up', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) {
+                const d = data.detail;
+                err(errEl, Array.isArray(d) ? d.map(x => x.msg).join(' ') : (d || 'Ошибка'));
+                return;
+            }
+            err(errEl, 'Регистрация успешна. Войдите.');
+            document.getElementById('tabLogin').click();
+        } catch (e) { err(errEl, e.message); }
+    };
+
+    document.getElementById('btnLogout').onclick = () => {
+        setToken(null);
+        show(document.getElementById('authBlock'), true);
+        show(document.getElementById('appBlock'), false);
+    };
+
+    document.querySelector('select[name="mode"]').onchange = function() {
+        const isCommon = this.value === 'COMMON';
+        show(document.getElementById('lblPromoCommon'), isCommon);
+        show(document.getElementById('lblPromoUnique'), !isCommon);
+    };
+    document.querySelector('select[name="mode"]').dispatchEvent(new Event('change'));
+
+    document.getElementById('btnNewPromo').onclick = () => {
+        show(document.getElementById('promoForm'), true);
+        err(document.getElementById('promoError'), '');
+    };
+    document.getElementById('btnCancelPromo').onclick = () => show(document.getElementById('promoForm'), false);
+
+    document.getElementById('promoForm').onsubmit = async e => {
+        e.preventDefault();
+        const form = e.target;
+        const mode = form.mode.value;
+        let body = {
+            mode,
+            description: form.description.value.trim(),
+            target: JSON.parse(form.target.value || '{}'),
+            max_count: +form.max_count.value
+        };
+        if (form.image_url.value) body.image_url = form.image_url.value;
+        if (form.active_from.value) body.active_from = form.active_from.value;
+        if (form.active_until.value) body.active_until = form.active_until.value;
+        if (mode === 'COMMON') body.promo_common = form.promo_common.value.trim();
+        else body.promo_unique = JSON.parse(form.promo_unique.value || '[]');
+        const errEl = document.getElementById('promoError');
+        try {
+            const r = await fetch(API + '/business/promo/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token() },
+                body: JSON.stringify(body)
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) {
+                err(errEl, Array.isArray(data.detail) ? data.detail.map(x => x.msg).join(' ') : (data.detail || 'Ошибка'));
+                return;
+            }
+            show(document.getElementById('promoForm'), false);
+            loadPromos();
+        } catch (e) { err(errEl, e.message); }
+    };
+
+    async function loadPromos() {
+        const list = document.getElementById('promoList');
+        if (!token()) return;
+        try {
+            const r = await fetch(API + '/business/promo?limit=50', {
+                headers: { 'Authorization': 'Bearer ' + token() }
+            });
+            if (!r.ok) { list.innerHTML = '<p class="error">Не удалось загрузить список</p>'; return; }
+            const arr = await r.json();
+            if (!arr.length) { list.innerHTML = '<p>Промокодов пока нет.</p>'; return; }
+            list.innerHTML = '<table><thead><tr><th>ID</th><th>Режим</th><th>Описание</th><th>Активен</th></tr></thead><tbody>' +
+                arr.map(p => `<tr><td>${p.id}</td><td>${p.mode}</td><td>${p.description.slice(0, 40)}…</td><td>${p.active ? 'Да' : 'Нет'}</td></tr>`).join('') +
+                '</tbody></table>';
+        } catch (e) { list.innerHTML = '<p class="error">' + e.message + '</p>'; }
+    }
+
+    if (token()) {
+        show(document.getElementById('authBlock'), false);
+        show(document.getElementById('appBlock'), true);
+        loadPromos();
+    }
+</script>
+</body>
+</html>

@@ -1,4 +1,6 @@
 import logging
+from pathlib import Path as PathLib
+from fastapi.staticfiles import StaticFiles
 from datetime import datetime, timezone
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Body, Path, Request
 from fastapi.exceptions import RequestValidationError
@@ -11,6 +13,9 @@ import uvicorn
 import os
 app = FastAPI(root_path="/api")
 
+STATIC_DIR = PathLib(__file__).parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
 @app.get("/ping")#1
 def send():
