@@ -4,7 +4,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Query, Body, Path, 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from database import  get_db, Company, PromoCode, init_db
+from database import  get_db, Company, PromoCode
 from utility import hash_password, create_access_token, verify_password, verify_token
 from models import CompanyCreate, AuthRequest, PromoCodeCreate
 import uvicorn
@@ -12,7 +12,7 @@ import os
 app = FastAPI(root_path="/api")
 
 
-@app.get("/ping")
+@app.get("/ping")#1
 def send():
     return {"status": "PROOOOOOOOOOOOOOOOOD"}
 
@@ -38,7 +38,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("main")
 
-@app.post("/business/auth/sign-up")
+@app.post("/business/auth/sign-up")#2
 async def sign_up(data: CompanyCreate, db: Session = Depends(get_db)):
     try:
         logger.info("Получен запрос на регистрацию: %s", data.email)
@@ -70,7 +70,7 @@ async def sign_up(data: CompanyCreate, db: Session = Depends(get_db)):
         logger.error("Внутренняя ошибка сервера: %s", str(e))
         raise HTTPException(status_code=500, detail="Произошла ошибка на сервере")
 
-@app.post("/business/auth/sign-in", response_model=dict)
+@app.post("/business/auth/sign-in", response_model=dict)#3
 def auth_company(auth_request: AuthRequest, db: Session = Depends(get_db)):
     company = db.query(Company).filter(Company.email == auth_request.email).first()
     if not company or not verify_password(auth_request.password, company.password):
@@ -91,7 +91,7 @@ def auth_company(auth_request: AuthRequest, db: Session = Depends(get_db)):
     }
 
 
-@app.post("/business/promo", response_model=dict, status_code=status.HTTP_201_CREATED)
+@app.post("/business/promo/create", response_model=dict, status_code=status.HTTP_201_CREATED)#4
 def create_promo_code(
     promo: PromoCodeCreate,
     db: Session = Depends(get_db),
@@ -209,7 +209,9 @@ def get_promo_by_id(
         "active_until": promo.active_until,
     }
 
-@app.patch("/business/promo/{id}", response_model=dict, status_code=status.HTTP_200_OK)
+
+
+@app.patch("/business/promo/{id}", response_model=dict, status_code=status.HTTP_200_OK)#6
 def update_promo_code(
     id: str,
     promo_data: dict = Body(...),
@@ -263,7 +265,7 @@ def update_promo_code(
         "active_until": promo.active_until,
     }
 
-@app.get("/business/promo/{id}/stat", response_model=dict, status_code=status.HTTP_200_OK)
+@app.get("/business/promo/{id}/stat", response_model=dict, status_code=status.HTTP_200_OK)#14
 def get_promo_stats(
     id: str = Path(..., description="Уникальный идентификатор промокода"),
     db: Session = Depends(get_db),
@@ -293,6 +295,8 @@ def get_promo_stats(
         "activations_count": promo.used_count,
         "countries": country_stats
     }
+
+
 
 
 if __name__ == "__main__":

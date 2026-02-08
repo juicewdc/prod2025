@@ -72,11 +72,3 @@ class PromoCodeCreate(BaseModel):
 
 def hash_id(name: str) -> str:
     pwd_context.hash(name)
-
-
-
-
-
-
-
-
